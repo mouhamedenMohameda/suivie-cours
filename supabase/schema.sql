@@ -12,6 +12,8 @@ create table if not exists students (
   full_name text not null,
   email text,
   notes text,
+  amount_due numeric not null default 0,
+  alert_threshold numeric not null default 0,
   created_at timestamptz default now()
 );
 

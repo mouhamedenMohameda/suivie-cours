@@ -634,6 +634,83 @@ select {
   font-size: 12px;
 }
 
+.mobile-menu-panel {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  z-index: 2;
+}
+
+.mobile-menu-panel button {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mobile-menu-panel button:hover {
+  background: var(--surface-muted);
+}
+
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 10px 0;
+  background: var(--bg);
+}
+
+.mobile-topbar-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.students-block {
+  display: block;
+}
+
+.billing-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #f8f9ff;
+}
+
+.billing-alert {
+  border-color: #f59e0b;
+  background: #fff7ed;
+}
+
+.billing-alert-text {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: #fed7aa;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.billing-form {
+  display: grid;
+  gap: 8px;
+}
+
 .divider {
   height: 1px;
   background: var(--border);
@@ -900,6 +977,28 @@ select {
 
   .students-chat .primary {
     width: 100%;
+  }
+
+  .mobile-topbar {
+    display: flex;
+  }
+
+  .students-block {
+    display: none;
+  }
+
+  .students-block.is-active {
+    display: block;
+  }
+
+  .students-sidebar,
+  .students-chat {
+    display: none;
+  }
+
+  .students-sidebar.is-active,
+  .students-chat.is-active {
+    display: grid;
   }
 }
 

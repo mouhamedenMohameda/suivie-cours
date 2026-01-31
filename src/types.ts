@@ -3,6 +3,8 @@ export type Student = {
   full_name: string;
   email: string | null;
   notes: string | null;
+  amount_due: number;
+  alert_threshold: number;
   created_at: string;
 };
 

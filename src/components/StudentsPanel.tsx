@@ -23,6 +23,8 @@ export default function StudentsPanel({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
+  const [amountDue, setAmountDue] = useState("0");
+  const [alertThreshold, setAlertThreshold] = useState("0");
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -48,11 +50,31 @@ export default function StudentsPanel({
   const [allowedWeekdays, setAllowedWeekdays] = useState<number[]>([]);
   const [allowedDates, setAllowedDates] = useState<string[]>([]);
   const [allowedSubjects, setAllowedSubjects] = useState<string[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileSection, setMobileSection] = useState<
+    "list" | "chat" | "notes" | "create"
+  >("list");
+  const [billingSaving, setBillingSaving] = useState(false);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
+
+  const mobileSectionLabel =
+    mobileSection === "list"
+      ? "Liste des étudiants"
+      : mobileSection === "chat"
+        ? "Chat IA"
+        : mobileSection === "notes"
+          ? "Notes de séance"
+          : "Créer un étudiant";
 
   const selectedStudent = useMemo(
     () => students.find((student) => student.id === selectedStudentId) ?? null,
     [students, selectedStudentId]
   );
+
+  const billingAlert =
+    selectedStudent &&
+    selectedStudent.alert_threshold > 0 &&
+    selectedStudent.amount_due > selectedStudent.alert_threshold;
 
   const groupedNotes = useMemo(() => {
     return sessionNotes.reduce<Record<string, ProgressRecord[]>>(
@@ -98,6 +120,11 @@ export default function StudentsPanel({
   }, [students, selectedStudentId]);
 
   useEffect(() => {
+    if (!selectedStudent) return;
+    setBillingMessage(null);
+  }, [selectedStudent]);
+
+  useEffect(() => {
     if (allowedDates.length === 0) {
       setNoteDate("");
       return;
@@ -121,7 +148,9 @@ export default function StudentsPanel({
       owner_id: userId,
       full_name: fullName.trim(),
       email: email.trim() || null,
-      notes: notes.trim() || null
+      notes: notes.trim() || null,
+      amount_due: Number(amountDue) || 0,
+      alert_threshold: Number(alertThreshold) || 0
     });
 
     if (error) {
@@ -130,6 +159,8 @@ export default function StudentsPanel({
       setFullName("");
       setEmail("");
       setNotes("");
+      setAmountDue("0");
+      setAlertThreshold("0");
       await reloadStudents();
     }
 
@@ -154,6 +185,29 @@ export default function StudentsPanel({
       setChatId(null);
       setMessages([]);
     }
+  };
+
+  const handleUpdateBilling = async () => {
+    if (!selectedStudent) return;
+    setBillingSaving(true);
+    setBillingMessage(null);
+
+    const { error } = await supabase
+      .from("students")
+      .update({
+        amount_due: Number(amountDue) || 0,
+        alert_threshold: Number(alertThreshold) || 0
+      })
+      .eq("id", selectedStudent.id);
+
+    if (error) {
+      setBillingMessage(error.message);
+    } else {
+      await reloadStudents();
+      setBillingMessage("Montants mis à jour.");
+    }
+
+    setBillingSaving(false);
   };
 
   const ensureChat = async (studentId: string) => {
@@ -507,7 +561,63 @@ export default function StudentsPanel({
 
   return (
     <div className="students-layout">
-      <section className="panel students-sidebar">
+      <div className="mobile-topbar">
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setMenuOpen((prev) => !prev)}
+        >
+          Menu
+        </button>
+        <span className="mobile-topbar-label">{mobileSectionLabel}</span>
+        {menuOpen && (
+          <div className="mobile-menu-panel">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileSection("list");
+                setMenuOpen(false);
+              }}
+            >
+              Liste des étudiants
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileSection("chat");
+                setMenuOpen(false);
+              }}
+            >
+              Chat IA
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileSection("notes");
+                setMenuOpen(false);
+              }}
+            >
+              Notes de séance
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileSection("create");
+                setMenuOpen(false);
+              }}
+            >
+              Créer un étudiant
+            </button>
+          </div>
+        )}
+      </div>
+
+      <section
+        className={`panel students-sidebar ${
+          mobileSection === "list" || mobileSection === "create" ? "is-active" : ""
+        }`}
+        id="students-list-section"
+      >
         <div className="panel-header">
           <div>
             <h2>Étudiants</h2>
@@ -518,6 +628,11 @@ export default function StudentsPanel({
           <span className="pill">{students.length}</span>
         </div>
 
+        <div
+          className={`students-block ${
+            mobileSection === "list" ? "is-active" : ""
+          }`}
+        >
         <div className="student-highlight">
           <div>
             <p className="muted small">Étudiant sélectionné</p>
@@ -531,7 +646,52 @@ export default function StudentsPanel({
           <div className="student-highlight-tag">1 chat IA</div>
         </div>
 
-        <div className="divider" />
+        {selectedStudent && (
+          <div className={`billing-card ${billingAlert ? "billing-alert" : ""}`}>
+            <div>
+              <p className="muted small">Montant restant à régler</p>
+              <p className="list-title">
+                {Number(selectedStudent.amount_due || 0).toLocaleString("fr-FR")}
+              </p>
+              {billingAlert && (
+                <span className="billing-alert-text">
+                  Seuil dépassé
+                </span>
+              )}
+            </div>
+            <div className="billing-form">
+              <label className="field">
+                <span>Montant dû</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={amountDue}
+                  onChange={(event) => setAmountDue(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Seuil d'alerte</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={alertThreshold}
+                  onChange={(event) => setAlertThreshold(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleUpdateBilling}
+                disabled={billingSaving}
+              >
+                {billingSaving ? "Mise à jour..." : "Mettre à jour"}
+              </button>
+              {billingMessage && (
+                <span className="muted small">{billingMessage}</span>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="divider" />
 
@@ -543,67 +703,78 @@ export default function StudentsPanel({
             onClick={() => {
               const element = document.getElementById("student-create-form");
               element?.scrollIntoView({ behavior: "smooth", block: "start" });
+              setMobileSection("create");
             }}
           >
             Créer
           </button>
         </div>
-
-        {loading ? (
-          <p>Chargement...</p>
-        ) : students.length === 0 ? (
-          <p className="muted">Aucun étudiant pour le moment.</p>
-        ) : (
-          <div className="student-list">
-            {students.map((student) => (
-              <div
-                key={student.id}
-                className={`student-item ${
-                  selectedStudentId === student.id ? "student-item--active" : ""
-                }`}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedStudentId(student.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
+          {loading ? (
+            <p>Chargement...</p>
+          ) : students.length === 0 ? (
+            <p className="muted">Aucun étudiant pour le moment.</p>
+          ) : (
+            <div className="student-list">
+              {students.map((student) => (
+                <div
+                  key={student.id}
+                  className={`student-item ${
+                    selectedStudentId === student.id ? "student-item--active" : ""
+                  }`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
                     setSelectedStudentId(student.id);
-                  }
-                }}
-              >
-                <div className="student-meta">
-                  <div className="student-avatar">
-                    {student.full_name.trim().slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="list-title">{student.full_name}</p>
-                    {student.email && (
-                      <p className="muted small">{student.email}</p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="link danger"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleDelete(student.id);
+                    setMobileSection("list");
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      setSelectedStudentId(student.id);
+                      setMobileSection("list");
+                    }
                   }}
                 >
-                  Supprimer
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="student-meta">
+                    <div className="student-avatar">
+                      {student.full_name.trim().slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="list-title">{student.full_name}</p>
+                      {student.email && (
+                        <p className="muted small">{student.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="link danger"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDelete(student.id);
+                    }}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="divider" />
 
-        <h3>Créer un étudiant</h3>
-        <p className="muted">
-          Créez un profil étudiant pour l'associer ensuite à l'emploi du temps.
-        </p>
+        <div
+          id="students-create-section"
+          className={`students-block ${
+            mobileSection === "create" ? "is-active" : ""
+          }`}
+        >
+          <h3>Créer un étudiant</h3>
+          <p className="muted">
+            Créez un profil étudiant pour l'associer ensuite à l'emploi du temps.
+          </p>
 
-        <form id="student-create-form" onSubmit={handleCreate} className="stack">
+          <form onSubmit={handleCreate} className="stack">
           <label className="field">
             <span>Nom complet</span>
             <input
@@ -631,83 +802,116 @@ export default function StudentsPanel({
             />
           </label>
 
+          <label className="field">
+            <span>Montant dû</span>
+            <input
+              type="number"
+              min={0}
+              value={amountDue}
+              onChange={(event) => setAmountDue(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Seuil d'alerte</span>
+            <input
+              type="number"
+              min={0}
+              value={alertThreshold}
+              onChange={(event) => setAlertThreshold(event.target.value)}
+            />
+          </label>
+
           {message && <div className="message">{message}</div>}
 
           <button type="submit" className="primary" disabled={saving}>
             {saving ? "Enregistrement..." : "Ajouter l'étudiant"}
           </button>
-        </form>
+          </form>
+        </div>
       </section>
 
-      <section className="panel students-chat">
-        <div className="panel-header">
-          <div>
-            <h2>Chat IA</h2>
-            <p className="muted">
-              Discutez de la progression et demandez des cours personnalisés.
-            </p>
-          </div>
-        </div>
-
+      <section
+        className={`panel students-chat ${
+          mobileSection === "chat" || mobileSection === "notes" ? "is-active" : ""
+        }`}
+        id="students-chat-section"
+      >
         {!selectedStudent ? (
           <p className="muted">Sélectionne un étudiant pour commencer.</p>
         ) : (
           <div className="chat-shell">
-            <div className="chat-header">
-              <div>
-                <p className="list-title">{selectedStudent.full_name}</p>
-                {selectedStudent.notes && (
-                  <p className="muted small">{selectedStudent.notes}</p>
-                )}
+            <div
+              className={`chat-section students-block ${
+                mobileSection === "chat" ? "is-active" : ""
+              }`}
+            >
+              <div className="panel-header">
+                <div>
+                  <h2>Chat IA</h2>
+                  <p className="muted">
+                    Discutez de la progression et demandez des cours personnalisés.
+                  </p>
+                </div>
               </div>
-              <span className="pill">1 chat</span>
+              <div className="chat-header">
+                <div>
+                  <p className="list-title">{selectedStudent.full_name}</p>
+                  {selectedStudent.notes && (
+                    <p className="muted small">{selectedStudent.notes}</p>
+                  )}
+                </div>
+                <span className="pill">1 chat</span>
+              </div>
+
+              {chatError && <div className="alert">{chatError}</div>}
+
+              {chatLoading ? (
+                <p>Chargement du chat...</p>
+              ) : (
+                <div className="chat-messages">
+                  {messages.length === 0 ? (
+                    <p className="muted">
+                      Aucun message pour le moment. Commence la discussion.
+                    </p>
+                  ) : (
+                    messages.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`chat-bubble ${
+                          item.role === "assistant"
+                            ? "chat-bubble--assistant"
+                            : "chat-bubble--user"
+                        }`}
+                      >
+                        <p>{item.content}</p>
+                        <span className="muted small">
+                          {new Date(item.created_at).toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <form className="chat-input" onSubmit={handleSendMessage}>
+                <input
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  placeholder="Ex: propose un cours sur les équations..."
+                  disabled={sending}
+                />
+                <button type="submit" className="primary" disabled={sending}>
+                  {sending ? "Envoi..." : "Envoyer"}
+                </button>
+              </form>
             </div>
 
-            {chatError && <div className="alert">{chatError}</div>}
-
-            {chatLoading ? (
-              <p>Chargement du chat...</p>
-            ) : (
-              <div className="chat-messages">
-                {messages.length === 0 ? (
-                  <p className="muted">
-                    Aucun message pour le moment. Commence la discussion.
-                  </p>
-                ) : (
-                  messages.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`chat-bubble ${
-                        item.role === "assistant"
-                          ? "chat-bubble--assistant"
-                          : "chat-bubble--user"
-                      }`}
-                    >
-                      <p>{item.content}</p>
-                      <span className="muted small">
-                        {new Date(item.created_at).toLocaleString("fr-FR")}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            <form className="chat-input" onSubmit={handleSendMessage}>
-              <input
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                placeholder="Ex: propose un cours sur les équations..."
-                disabled={sending}
-              />
-              <button type="submit" className="primary" disabled={sending}>
-                {sending ? "Envoi..." : "Envoyer"}
-              </button>
-            </form>
-
-            <div className="divider" />
-
-            <div className="notes-section">
+            <div
+              className={`notes-section students-block ${
+                mobileSection === "notes" ? "is-active" : ""
+              }`}
+              id="students-notes-section"
+            >
               <div className="panel-header">
                 <div>
                   <h3>Notes de séance</h3>

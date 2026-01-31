@@ -192,7 +192,7 @@ select {
   max-width: 1240px;
   display: grid;
   gap: 24px;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 
 .header {
@@ -457,7 +457,6 @@ select {
   align-items: start;
   min-height: 540px;
   overflow-x: visible;
-  min-width: 900px;
 }
 
 .students-sidebar {
@@ -840,6 +839,67 @@ select {
 
   .schedule-form {
     position: static;
+  }
+
+  .students-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .students-layout {
+    grid-template-columns: 1fr;
+    min-width: auto;
+  }
+
+  .students-chat {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 24px 16px 48px;
+  }
+
+  .app-shell {
+    overflow-x: visible;
+  }
+
+  .card,
+  .panel {
+    padding: 18px;
+  }
+
+  .tabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+  }
+
+  .notes-form {
+    grid-template-columns: 1fr;
+  }
+
+  .notes-form-full {
+    grid-column: auto;
+  }
+
+  .chat-input {
+    grid-template-columns: 1fr;
+  }
+
+  .students-chat .chat-input {
+    grid-template-columns: 1fr;
+  }
+
+  .students-chat .primary {
+    width: 100%;
   }
 }
 

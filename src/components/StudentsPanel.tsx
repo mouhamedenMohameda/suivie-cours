@@ -231,22 +231,26 @@ export default function StudentsPanel({
       setNotesError(error.message);
       setAllowedWeekdays([]);
       setAllowedDates([]);
-      return { days: [] as number[], dates: [] as string[] };
+      return { days: [] as number[], dates: [] as string[], subjects: [] as string[] };
     }
 
+    const slots = (data ?? []).flatMap((row) => row.time_slots ?? []);
     const days = Array.from(
       new Set(
-        (data ?? [])
-          .map((row) => row.time_slots?.day_of_week)
+        slots
+          .map((slot) => slot.day_of_week)
           .filter((value): value is number => typeof value === "number")
       )
     ).sort();
 
     const subjects = Array.from(
       new Set(
-        (data ?? [])
-          .map((row) => row.time_slots?.subject)
-          .filter((value): value is string => typeof value === "string" && value)
+        slots
+          .map((slot) => slot.subject)
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && value.trim().length > 0
+          )
       )
     ).sort((a, b) => a.localeCompare(b, "fr-FR"));
 
